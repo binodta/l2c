@@ -101,7 +101,15 @@ The config is saved automatically at `~/.l2c/config.json` during setup.
 }
 ```
 
-Edit this file to add or remove tunnels, then restart `l2c run`.
+You can edit this file manually, or use the built-in CLI commands to manage your tunnels:
+
+```bash
+l2c tunnel add --id new-app --local http://localhost:4000
+l2c tunnel list
+l2c tunnel remove --id old-app
+```
+
+After making changes, simply restart `l2c run` for them to take effect.
 
 ---
 
@@ -110,8 +118,11 @@ Edit this file to add or remove tunnels, then restart `l2c run`.
 | Command | Description |
 |---|---|
 | `l2c setup` | Deploy worker & configure credentials interactively |
-| `l2c run` | Start all tunnels defined in `~/.l2c/config.json` |
+| `l2c run` | Start all tunnels defined in config |
 | `l2c run --config /path/to/config.json` | Use a custom config file |
+| `l2c tunnel add --id <id> --local <url>` | Add a new tunnel |
+| `l2c tunnel list` | List all configured tunnels |
+| `l2c tunnel remove --id <id>` | Remove a tunnel (use `--force` to skip prompt) |
 
 ---
 
