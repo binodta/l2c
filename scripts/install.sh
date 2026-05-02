@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 # l2c - One-line Installer for Mac and Linux
 set -e
 
@@ -7,69 +6,63 @@ set -e
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
-INSTALL_DIR="$HOME/.l2c"
 REPO="binodta/l2c"
+INSTALL_DIR="$HOME/.l2c"
+BINARY_NAME="l2c"
 
 echo -e "${BLUE}Installing l2c (Local to Cloud)...${NC}"
 
-# 1. Create installation directory (replacing if exists)
-if [ -d "$INSTALL_DIR" ] || [ -f "$INSTALL_DIR" ]; then
-    echo "Replacing existing installation in $INSTALL_DIR..."
-    rm -rf "$INSTALL_DIR"
-fi
-mkdir -p "$INSTALL_DIR"
-
-# 2. Download the latest source code
-echo "Downloading source code..."
-curl -sL "https://github.com/$REPO/archive/refs/heads/main.tar.gz" | tar xz -C "$INSTALL_DIR" --strip-components=1
-
-# 3. Platform Detection and Binary Setup
-cd "$INSTALL_DIR"
+# 1. Detect OS and architecture
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 
 case "$OS" in
     linux)
-        BINARY="l2c-linux-amd64"
+        BINARY_FILE="l2c-linux-amd64"
         ;;
     darwin)
-        if [ "$ARCH" == "arm64" ]; then
-            BINARY="l2c-darwin-arm64"
+        if [ "$ARCH" = "arm64" ]; then
+            BINARY_FILE="l2c-darwin-arm64"
         else
-            BINARY="l2c-darwin-amd64"
+            BINARY_FILE="l2c-darwin-amd64"
         fi
         ;;
     *)
-        echo -e "${RED}Error: Unsupported OS ($OS).${NC}"
+        echo -e "${RED}Error: Unsupported OS ($OS). Only Linux and macOS are supported.${NC}"
         exit 1
         ;;
 esac
 
-if [ -f "bin/$BINARY" ]; then
-    echo -e "Installing binary for ${BLUE}$OS-$ARCH${NC}..."
-    cp "bin/$BINARY" ./l2c
-    chmod +x l2c
-    ./l2c setup
-else
-    echo -e "${RED}Error: Binary $BINARY not found in the package.${NC}"
+echo -e "Detected platform: ${BLUE}$OS/$ARCH${NC} → downloading ${BINARY_FILE}"
+
+# 2. Create install directory (clean if exists)
+if [ -f "$INSTALL_DIR" ]; then
+    rm -f "$INSTALL_DIR"
+fi
+mkdir -p "$INSTALL_DIR"
+
+# 3. Download the binary directly from GitHub
+DOWNLOAD_URL="https://raw.githubusercontent.com/$REPO/main/bin/$BINARY_FILE"
+echo "Downloading from $DOWNLOAD_URL..."
+
+if ! curl -fsSL "$DOWNLOAD_URL" -o "$INSTALL_DIR/$BINARY_NAME"; then
+    echo -e "${RED}Error: Failed to download binary. Check your internet connection or try again later.${NC}"
     exit 1
 fi
 
-# 4. Success message and PATH instruction
-echo -e "\n${GREEN}l2c is successfully installed in $INSTALL_DIR${NC}"
-echo -e "------------------------------------------------"
+chmod +x "$INSTALL_DIR/$BINARY_NAME"
+echo -e "${GREEN}Binary downloaded successfully.${NC}"
 
-# 5. Add to PATH automatically
+# 4. Add to PATH in shell profiles
 PROFILES=("$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.profile")
 UPDATED=false
 
 for PROFILE in "${PROFILES[@]}"; do
     if [ -f "$PROFILE" ]; then
-        # Check for the specific l2c path to avoid false positives
         if ! grep -q "l2c tunnel path" "$PROFILE"; then
-            echo "Adding $INSTALL_DIR to PATH in $PROFILE..."
             echo "" >> "$PROFILE"
             echo "# l2c tunnel path" >> "$PROFILE"
             echo "export PATH=\"\$PATH:$INSTALL_DIR\"" >> "$PROFILE"
@@ -79,15 +72,18 @@ for PROFILE in "${PROFILES[@]}"; do
 done
 
 if [ "$UPDATED" = true ]; then
-    echo -e "\n${GREEN}Success! PATH updated.${NC}"
-    echo -e "${YELLOW}Please restart your terminal or run:${NC}"
-    echo -e "${BLUE}export PATH=\"\$PATH:$INSTALL_DIR\"${NC}"
-else
-    echo -e "\n${BLUE}PATH already configured in your profile files.${NC}"
+    echo -e "${GREEN}PATH updated in your shell profile.${NC}"
 fi
 
-echo -e "\n${GREEN}Installation Complete!${NC}"
+# 5. Run setup
+echo -e "\n${BLUE}Starting l2c setup...${NC}\n"
+"$INSTALL_DIR/$BINARY_NAME" setup
+
+# 6. Final instructions
+echo -e "\n${GREEN}Installation complete!${NC}"
 echo -e "------------------------------------------------"
-echo -e "1. Run: ${BLUE}source $SHELL_PROFILE${NC}"
-echo -e "2. Start: ${GREEN}l2c run${NC}"
+echo -e "To use ${GREEN}l2c${NC} in this terminal, run:"
+echo -e "  ${BLUE}export PATH=\"\$PATH:$INSTALL_DIR\"${NC}"
+echo -e ""
+echo -e "New terminals will have it automatically."
 echo -e "------------------------------------------------"
