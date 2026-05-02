@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 
@@ -88,9 +89,9 @@ var runCmd = &cobra.Command{
 
 func init() {
 	home, _ := os.UserHomeDir()
-	defaultConfig := ".l2c"
+	defaultConfig := ".l2c/config.json"
 	if home != "" {
-		defaultConfig = home + "/.l2c"
+		defaultConfig = filepath.Join(home, ".l2c", "config.json")
 	}
 	runCmd.Flags().StringVarP(&configPath, "config", "c", defaultConfig, "Path to config file")
 	rootCmd.AddCommand(runCmd)

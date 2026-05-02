@@ -14,10 +14,14 @@ REPO="binodta/l2c"
 
 echo -e "${BLUE}Installing l2c (Local to Cloud)...${NC}"
 
-# 1. Create installation directory
+# 1. Create installation directory (replacing if exists)
+if [ -d "$INSTALL_DIR" ] || [ -f "$INSTALL_DIR" ]; then
+    echo "Replacing existing installation in $INSTALL_DIR..."
+    rm -rf "$INSTALL_DIR"
+fi
 mkdir -p "$INSTALL_DIR"
 
-# 2. Download the latest source code without git clone
+# 2. Download the latest source code
 echo "Downloading source code..."
 curl -sL "https://github.com/$REPO/archive/refs/heads/main.tar.gz" | tar xz -C "$INSTALL_DIR" --strip-components=1
 
@@ -29,12 +33,31 @@ chmod +x scripts/setup.sh
 # 4. Success message and PATH instruction
 echo -e "\n${GREEN}l2c is successfully installed in $INSTALL_DIR${NC}"
 echo -e "------------------------------------------------"
-echo -e "To use l2c from anywhere, add it to your PATH:"
-echo -e ""
-echo -e "  ${BLUE}echo 'export PATH=\"\$PATH:$INSTALL_DIR\"' >> ~/.zshrc${NC} (for Zsh users)"
-echo -e "  OR"
-echo -e "  ${BLUE}echo 'export PATH=\"\$PATH:$INSTALL_DIR\"' >> ~/.bashrc${NC} (for Bash users)"
-echo -e ""
-echo -e "Then restart your terminal or run ${BLUE}source ~/.zshrc${NC}"
-echo -e "After that, you can start your tunnel by just running: ${GREEN}make run${NC} inside any project."
+
+# 5. Add to PATH automatically
+SHELL_PROFILE=""
+if [ -f "$HOME/.zshrc" ]; then
+    SHELL_PROFILE="$HOME/.zshrc"
+elif [ -f "$HOME/.bashrc" ]; then
+    SHELL_PROFILE="$HOME/.bashrc"
+fi
+
+if [ -n "$SHELL_PROFILE" ]; then
+    if ! grep -q "$INSTALL_DIR" "$SHELL_PROFILE"; then
+        echo "Adding $INSTALL_DIR to PATH in $SHELL_PROFILE..."
+        echo "" >> "$SHELL_PROFILE"
+        echo "# l2c tunnel path" >> "$SHELL_PROFILE"
+        echo "export PATH=\"\$PATH:$INSTALL_DIR\"" >> "$SHELL_PROFILE"
+        echo -e "${GREEN}PATH updated!${NC} Please run: ${BLUE}source $SHELL_PROFILE${NC}"
+    else
+        echo -e "${BLUE}PATH already configured in $SHELL_PROFILE${NC}"
+    fi
+else
+    echo -e "${RED}Could not find .zshrc or .bashrc.${NC}"
+    echo -e "Please manually add this to your PATH:"
+    echo -e "export PATH=\"\$PATH:$INSTALL_DIR\""
+fi
+
+echo -e "------------------------------------------------"
+echo -e "You can now start your tunnel by just running: ${GREEN}l2c setup${NC} or ${GREEN}l2c run${NC}"
 echo -e "------------------------------------------------"

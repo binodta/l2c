@@ -187,7 +187,14 @@ var setupCmd = &cobra.Command{
 		}
 
 		home, _ := os.UserHomeDir()
-		configPath := filepath.Join(home, ".l2c")
+		configDir := filepath.Join(home, ".l2c")
+		configPath := filepath.Join(configDir, "config.json")
+
+		// Ensure directory exists
+		if err := os.MkdirAll(configDir, 0755); err != nil {
+			fmt.Printf("Error creating config directory: %v\n", err)
+			return
+		}
 
 		file, _ := json.MarshalIndent(cfg, "", "  ")
 		if err := os.WriteFile(configPath, file, 0600); err != nil {
