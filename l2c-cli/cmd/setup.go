@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"crypto/rand"
 	"embed"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -78,16 +77,13 @@ var setupCmd = &cobra.Command{
 		}
 		fmt.Println("OK")
 
-		// 3. Auth Token
-		fmt.Print("Enter a secret token for your tunnel (press Enter for a random one): ")
-		token, _ := reader.ReadString('\n')
-		token = strings.TrimSpace(token)
-		if token == "" {
-			b := make([]byte, 16)
-			rand.Read(b)
-			token = hex.EncodeToString(b)
-			fmt.Printf("Generated random token: %s\n", token)
+		// 3. Auth Token — auto-generated UUID v4, no user prompt needed.
+		token, err := generateUUID()
+		if err != nil {
+			fmt.Printf("Error generating token: %v\n", err)
+			return
 		}
+		fmt.Printf("Generated auth token: %s\n", token)
 
 		// 4. Extract Worker to Temp Dir
 		fmt.Println("\nPreparing Worker deployment...")
@@ -216,4 +212,18 @@ var setupCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(setupCmd)
+}
+
+// generateUUID creates a random UUID v4 string.
+func generateUUID() (string, error) {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	// UUID v4 format
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]), nil
 }
