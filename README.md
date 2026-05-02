@@ -1,6 +1,6 @@
-# l2c-proxy (Local to Cloud Proxy)
+# l2c (Local to Cloud)
 
-A Local-to-Cloud Proxy uses Cloudflare Workers to create a secure tunnel between your local machine and the internet, allowing services running on localhost to be accessed via a public URL without opening ports or configuring firewalls.
+A Local-to-Cloud uses Cloudflare Workers to create a secure tunnel between your local machine and the internet, allowing services running on localhost to be accessed via a public URL without opening ports or configuring firewalls.
 
 - **Multi-App Support**: Map multiple local services in a single config file.
 - **Concurrent Requests**: Handles multiple simultaneous requests over a single WebSocket.
