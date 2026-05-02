@@ -1,109 +1,150 @@
-# l2c (Local to Cloud)
+# l2c — Local to Cloud
 
-A Local-to-Cloud uses Cloudflare Workers to create a secure tunnel between your local machine and the internet, allowing services running on localhost to be accessed via a public URL without opening ports or configuring firewalls.
+> A lightweight, ngrok-like tunneling tool powered by Cloudflare Workers. Expose any local service to the internet instantly — no open ports, no firewalls, no paid plans.
 
-- **Multi-App Support**: Map multiple local services in a single config file.
-- **Concurrent Requests**: Handles multiple simultaneous requests over a single WebSocket.
-- **Path-based Routing**: No custom domain required (uses `*.workers.dev`).
-- **Cross-Platform**: Works on Linux, macOS, and Windows.
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-blue)](https://github.com/binodta/l2c)
+[![Powered by](https://img.shields.io/badge/powered%20by-Cloudflare%20Workers-orange)](https://workers.cloudflare.com/)
 
-## Prerequisites
-- **Go 1.20+**
-- **Node.js & pnpm** (for the worker)
-- **Make** (optional, but recommended for Linux/macOS)
+---
 
-## One-Line Installation (Mac & Linux)
+## Features
 
-Install `l2c` with a single command:
+- 🔒 **Secure** — Token-based authentication baked into every request
+- 🔄 **Auto-Reconnect** — Resilient WebSocket with exponential backoff
+- 🗺️ **Multi-Tunnel** — Expose multiple local services simultaneously
+- ⚡ **Zero Infrastructure** — Runs entirely on Cloudflare's free tier
+- 📦 **No Dependencies** — Single binary, no Go/Node required to run
+- 🌍 **Cross-Platform** — Linux, macOS (Intel & Apple Silicon), Windows (WSL & native)
+
+---
+
+## Installation
+
+### Linux & macOS (one-liner)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/binodta/l2c/main/scripts/install.sh | bash
 ```
 
-## Quick Setup (Recommended)
+### Windows — WSL (Recommended)
 
-The easiest way to get started is using the interactive setup script:
-
-```bash
-make setup
-```
-
-This will automatically:
-1. Install Worker dependencies.
-2. Generate a secure authentication token.
-3. Deploy the Worker to your Cloudflare account.
-4. Configure your `config.json` file.
-
-## Manual Setup
-
-### 1. Deploy the Cloudflare Worker
+Open a WSL terminal and run the same command:
 
 ```bash
-cd worker
-pnpm install
-npx wrangler deploy
+curl -fsSL https://raw.githubusercontent.com/binodta/l2c/main/scripts/install.sh | bash
 ```
 
-### 2. Configure the Client
+> **Don't have WSL?** Install it with: `wsl --install` in PowerShell, then restart.
 
-Copy the example config and edit it with your tunnel IDs and local ports:
+### Windows — Native PowerShell
+
+```powershell
+irm https://raw.githubusercontent.com/binodta/l2c/main/scripts/install.ps1 | iex
+```
+
+The installer will:
+1. Auto-detect your OS and architecture
+2. Download the correct pre-built binary (~5MB)
+3. Add `l2c` to your `PATH` automatically
+4. Launch the interactive setup wizard
+
+---
+
+## Quick Start
+
+After installation, activate `l2c` in your current terminal:
 
 ```bash
-cp config.json.example config.json
+export PATH="$PATH:$HOME/.l2c"   # Linux/macOS/WSL
 ```
 
-**config.json example:**
+Then run the interactive setup (deploys your Cloudflare Worker):
+
+```bash
+l2c setup
+```
+
+Start tunneling:
+
+```bash
+l2c run
+```
+
+Your local services are now live at:
+```
+https://<your-worker>.workers.dev/t/<tunnel-id>/
+```
+
+---
+
+## Prerequisites
+
+- A **Cloudflare account** (free tier works)
+- **Node.js** — required only during `l2c setup` to deploy the worker via `npx wrangler`
+
+> After setup, only the `l2c` binary is needed to run tunnels.
+
+---
+
+## Configuration
+
+The config is saved automatically at `~/.l2c/config.json` during setup.
+
 ```json
 {
-  "server": "l2c-proxy.bomzzn.workers.dev",
+  "server": "your-worker.workers.dev",
+  "token": "your-secret-token",
   "tunnels": [
-    { "id": "my-app", "local": "http://localhost:8000" },
-    { "id": "api",    "local": "http://localhost:8080" }
+    { "id": "app",  "local": "http://localhost:3000" },
+    { "id": "api",  "local": "http://localhost:8080" }
   ]
 }
 ```
 
-### 3. Run the Client
+Edit this file to add or remove tunnels, then restart `l2c run`.
 
-```bash
-make run
+---
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `l2c setup` | Deploy worker & configure credentials interactively |
+| `l2c run` | Start all tunnels defined in `~/.l2c/config.json` |
+| `l2c run --config /path/to/config.json` | Use a custom config file |
+
+---
+
+## How It Works
+
+```
+Internet Request
+      │
+      ▼
+Cloudflare Worker  ──── WebSocket ────  l2c (your machine)
+  (*.workers.dev)                            │
+                                             ▼
+                                      localhost:PORT
 ```
 
-Your services will be available at:
-`https://l2c-proxy.bomzzn.workers.dev/t/{id}/`
+1. **`l2c run`** connects to your Cloudflare Worker over a persistent WebSocket.
+2. Incoming requests to `https://<worker>/t/<id>/` are forwarded over the socket.
+3. `l2c` proxies the request to your local service and returns the response.
+4. If the connection drops, `l2c` automatically reconnects with exponential backoff.
 
-## Testing Locally
+---
 
-1. Start the test server: `make test-server` (runs on port 8000).
-2. Ensure `config.json` has a tunnel for `localhost:8000`.
-3. Run the client: `make run`.
-4. Visit the URL provided in the terminal. You should see a **"It works!"** message.
+## Error Reference
 
-## OS Specific Instructions
+| Error | Meaning |
+|---|---|
+| `Authentication failed (HTTP 401)` | Wrong token — check `~/.l2c/config.json` |
+| `Tunnel endpoint not found (HTTP 404)` | Worker not deployed — run `l2c setup` |
+| `Cannot reach worker` | Check internet / worker URL |
+| `Local server not reachable` | Your local app isn't running on the configured port |
 
-### Linux & macOS
-The easiest way is to use the provided `Makefile`:
-```bash
-make test-server  # Terminal 1
-make run          # Terminal 2
-```
+---
 
-### Windows
-#### Option 1: WSL (Recommended)
-Follow the Linux instructions inside your WSL terminal.
+## License
 
-#### Option 2: PowerShell
-If you don't have `make` installed, run the commands manually:
-```powershell
-# Terminal 1: Test Server
-go run cli/test-server/main.go
-
-# Terminal 2: Tunnel Client
-go run cli/main.go -config config.json
-```
-
-## How it works
-1. The **Go Client** reads `config.json` and establishes WebSocket connections for each tunnel.
-2. The Worker uses **Durable Objects** to maintain these connections.
-3. Requests to `/t/{id}/*` are pushed over the WebSocket to your local machine.
-4. The Go Client proxies the request to your local port and returns the response.
+MIT
