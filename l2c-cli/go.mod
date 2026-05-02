@@ -1,4 +1,4 @@
-module github.com/binodtamang/l2c-proxy/l2c-cli
+module github.com/binodta/l2c/l2c-cli
 
 go 1.26.2
 

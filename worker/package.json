@@ -1,7 +1,7 @@
 {
-  "name": "l2c-proxy-worker",
+  "name": "l2c-worker",
   "version": "1.0.0",
-  "description": "Cloudflare Worker part of l2c-proxy",
+  "description": "Cloudflare Worker part of l2c",
   "main": "src/index.ts",
   "scripts": {
     "deploy": "wrangler deploy",

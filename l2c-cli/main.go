@@ -10,7 +10,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/binodtamang/l2c-proxy/l2c-cli/internal/client"
+	"github.com/binodta/l2c/l2c-cli/internal/client"
 )
 
 type Config struct {
