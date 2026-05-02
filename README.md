@@ -12,7 +12,29 @@ A Local-to-Cloud uses Cloudflare Workers to create a secure tunnel between your 
 - **Node.js & pnpm** (for the worker)
 - **Make** (optional, but recommended for Linux/macOS)
 
-## Getting Started
+## One-Line Installation (Mac & Linux)
+
+Install `l2c` with a single command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/binodta/l2c/main/scripts/install.sh | bash
+```
+
+## Quick Setup (Recommended)
+
+The easiest way to get started is using the interactive setup script:
+
+```bash
+make setup
+```
+
+This will automatically:
+1. Install Worker dependencies.
+2. Generate a secure authentication token.
+3. Deploy the Worker to your Cloudflare account.
+4. Configure your `config.json` file.
+
+## Manual Setup
 
 ### 1. Deploy the Cloudflare Worker
 
