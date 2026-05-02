@@ -1,0 +1,25 @@
+# Node.js
+node_modules/
+.wrangler/
+dist/
+worker/node_modules/
+worker/.wrangler/
+worker/dist/
+
+# Go
+cli/cli
+cli/test-server/test-server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Local Config
+config.json
+
+# OS specific
+.DS_Store
+Thumbs.db

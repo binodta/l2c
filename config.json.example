@@ -1,0 +1,13 @@
+{
+  "server": "l2c-proxy.bomzzn.workers.dev",
+  "tunnels": [
+    {
+      "id": "app-one",
+      "local": "http://localhost:8000"
+    },
+    {
+      "id": "app-two",
+      "local": "http://localhost:9000"
+    }
+  ]
+}
