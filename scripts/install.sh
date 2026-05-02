@@ -67,7 +67,8 @@ UPDATED=false
 
 for PROFILE in "${PROFILES[@]}"; do
     if [ -f "$PROFILE" ]; then
-        if ! grep -q "$INSTALL_DIR" "$PROFILE"; then
+        # Check for the specific l2c path to avoid false positives
+        if ! grep -q "l2c tunnel path" "$PROFILE"; then
             echo "Adding $INSTALL_DIR to PATH in $PROFILE..."
             echo "" >> "$PROFILE"
             echo "# l2c tunnel path" >> "$PROFILE"
@@ -80,7 +81,7 @@ done
 if [ "$UPDATED" = true ]; then
     echo -e "\n${GREEN}Success! PATH updated.${NC}"
     echo -e "${YELLOW}Please restart your terminal or run:${NC}"
-    echo -e "${BLUE}source ~/.bashrc && source ~/.profile${NC}"
+    echo -e "${BLUE}export PATH=\"\$PATH:$INSTALL_DIR\"${NC}"
 else
     echo -e "\n${BLUE}PATH already configured in your profile files.${NC}"
 fi

@@ -24,7 +24,14 @@ var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Interactive setup for Cloudflare Worker and CLI",
 	Run: func(cmd *cobra.Command, args []string) {
-		reader := bufio.NewReader(os.Stdin)
+		// Open /dev/tty to ensure we read from the keyboard even if stdin is a pipe
+		tty, err := os.Open("/dev/tty")
+		if err != nil {
+			// Fallback to stdin if tty is not available
+			tty = os.Stdin
+		}
+		defer tty.Close()
+		reader := bufio.NewReader(tty)
 
 		fmt.Println("l2c - Cloudflare Tunnel Setup")
 		fmt.Println("-------------------------------")
