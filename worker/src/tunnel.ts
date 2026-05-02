@@ -46,7 +46,18 @@ export class Tunnel implements DurableObject {
     }
 
     const requestId = crypto.randomUUID();
-    const body = await request.text();
+    const bodyBuffer = await request.arrayBuffer();
+    
+    // Convert ArrayBuffer to Base64 safely for any data type
+    let bodyBase64: string | null = null;
+    if (bodyBuffer.byteLength > 0) {
+      const bytes = new Uint8Array(bodyBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      bodyBase64 = btoa(binary);
+    }
 
     const proxyRequest = {
       type: "req",
@@ -54,7 +65,7 @@ export class Tunnel implements DurableObject {
       method: request.method,
       url: url.pathname + url.search,
       headers: Object.fromEntries(request.headers),
-      body: body ? btoa(body) : null,
+      body: bodyBase64,
     };
 
     return new Promise((resolve) => {

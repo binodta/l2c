@@ -2,6 +2,7 @@ import { Tunnel } from "./tunnel";
 
 export interface Env {
   TUNNELS: DurableObjectNamespace;
+  AUTH_TOKEN?: string;
 }
 
 export default {
@@ -11,6 +12,17 @@ export default {
     // Client registration: /connect/:id
     const connectMatch = url.pathname.match(/^\/connect\/([^\/]+)/);
     if (connectMatch) {
+      // Authentication check for CLI connection
+      const authToken = env.AUTH_TOKEN;
+      if (authToken) {
+        const authHeader = request.headers.get("Authorization");
+        const urlToken = url.searchParams.get("token");
+        
+        if (authHeader !== `Bearer ${authToken}` && urlToken !== authToken) {
+          return new Response("Unauthorized: Provide valid token to connect tunnel", { status: 401 });
+        }
+      }
+
       const tunnelId = connectMatch[1];
       console.log(`Connecting tunnel: ${tunnelId}`);
       const id = env.TUNNELS.idFromName(tunnelId);

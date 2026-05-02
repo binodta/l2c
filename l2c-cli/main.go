@@ -15,13 +15,13 @@ import (
 
 type Config struct {
 	Server  string         `json:"server"`
+	Token   string         `json:"token"`
 	Tunnels []TunnelConfig `json:"tunnels"`
 }
 
 type TunnelConfig struct {
 	ID    string `json:"id"`
 	Local string `json:"local"`
-	Token string `json:"token"`
 }
 
 func main() {
@@ -59,7 +59,7 @@ func main() {
 	fmt.Printf("Server: %s\n\n", cfg.Server)
 
 	for _, tc := range cfg.Tunnels {
-		c := client.NewClient(cfg.Server, tc.ID, tc.Local, tc.Token)
+		c := client.NewClient(cfg.Server, tc.ID, tc.Local, cfg.Token)
 		clients = append(clients, c)
 		wg.Add(1)
 		go func(cli *client.Client, id, local string) {

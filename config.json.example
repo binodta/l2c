@@ -1,5 +1,6 @@
 {
   "server": "l2c-proxy.bomzzn.workers.dev",
+  "token": "your-secret-token",
   "tunnels": [
     {
       "id": "app-one",

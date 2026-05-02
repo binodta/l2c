@@ -9,3 +9,6 @@ class_name = "Tunnel"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Tunnel"]
+
+[vars]
+AUTH_TOKEN = ""

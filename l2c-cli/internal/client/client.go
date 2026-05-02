@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -53,6 +54,11 @@ func NewClient(serverAddr, tunnelID, localAddr, token string) *Client {
 }
 
 func (c *Client) Start() error {
+	// Check if local server is running
+	if err := c.checkLocalServer(); err != nil {
+		return err
+	}
+
 	u := url.URL{Scheme: "wss", Host: c.serverAddr, Path: fmt.Sprintf("/connect/%s", c.tunnelID)}
 	log.Printf("Connecting to %s", u.String())
 
@@ -62,6 +68,9 @@ func (c *Client) Start() error {
 
 	header := http.Header{}
 	header.Set("User-Agent", "l2c-proxy-client/1.0")
+	if c.token != "" {
+		header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	}
 
 	conn, resp, err := dialer.Dial(u.String(), header)
 	if err != nil {
@@ -160,6 +169,26 @@ func (c *Client) handleRequest(req ProxyRequest) {
 		Headers: headers,
 		Body:    &respBodyEncoded,
 	})
+}
+
+func (c *Client) checkLocalServer() error {
+	u, err := url.Parse(c.localAddr)
+	if err != nil {
+		return fmt.Errorf("invalid local address: %v", err)
+	}
+
+	host := u.Host
+	if host == "" {
+		return fmt.Errorf("invalid local address: host is empty")
+	}
+
+	// Try to connect to the host
+	conn, err := net.DialTimeout("tcp", host, 2*time.Second)
+	if err != nil {
+		return fmt.Errorf("local server at %s is not reachable. Make sure your local app is running on this port", c.localAddr)
+	}
+	conn.Close()
+	return nil
 }
 
 func (c *Client) sendResponse(res ProxyResponse) {
