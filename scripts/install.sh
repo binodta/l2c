@@ -62,29 +62,31 @@ echo -e "\n${GREEN}l2c is successfully installed in $INSTALL_DIR${NC}"
 echo -e "------------------------------------------------"
 
 # 5. Add to PATH automatically
-SHELL_PROFILE=""
-if [ -f "$HOME/.zshrc" ]; then
-    SHELL_PROFILE="$HOME/.zshrc"
-elif [ -f "$HOME/.bashrc" ]; then
-    SHELL_PROFILE="$HOME/.bashrc"
-fi
+PROFILES=("$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.profile")
+UPDATED=false
 
-if [ -n "$SHELL_PROFILE" ]; then
-    if ! grep -q "$INSTALL_DIR" "$SHELL_PROFILE"; then
-        echo "Adding $INSTALL_DIR to PATH in $SHELL_PROFILE..."
-        echo "" >> "$SHELL_PROFILE"
-        echo "# l2c tunnel path" >> "$SHELL_PROFILE"
-        echo "export PATH=\"\$PATH:$INSTALL_DIR\"" >> "$SHELL_PROFILE"
-        echo -e "${GREEN}PATH updated!${NC} Please run: ${BLUE}source $SHELL_PROFILE${NC}"
-    else
-        echo -e "${BLUE}PATH already configured in $SHELL_PROFILE${NC}"
+for PROFILE in "${PROFILES[@]}"; do
+    if [ -f "$PROFILE" ]; then
+        if ! grep -q "$INSTALL_DIR" "$PROFILE"; then
+            echo "Adding $INSTALL_DIR to PATH in $PROFILE..."
+            echo "" >> "$PROFILE"
+            echo "# l2c tunnel path" >> "$PROFILE"
+            echo "export PATH=\"\$PATH:$INSTALL_DIR\"" >> "$PROFILE"
+            UPDATED=true
+        fi
     fi
+done
+
+if [ "$UPDATED" = true ]; then
+    echo -e "\n${GREEN}Success! PATH updated.${NC}"
+    echo -e "${YELLOW}Please restart your terminal or run:${NC}"
+    echo -e "${BLUE}source ~/.bashrc && source ~/.profile${NC}"
 else
-    echo -e "${RED}Could not find .zshrc or .bashrc.${NC}"
-    echo -e "Please manually add this to your PATH:"
-    echo -e "export PATH=\"\$PATH:$INSTALL_DIR\""
+    echo -e "\n${BLUE}PATH already configured in your profile files.${NC}"
 fi
 
+echo -e "\n${GREEN}Installation Complete!${NC}"
 echo -e "------------------------------------------------"
-echo -e "You can now start your tunnel by just running: ${GREEN}l2c setup${NC} or ${GREEN}l2c run${NC}"
+echo -e "1. Run: ${BLUE}source $SHELL_PROFILE${NC}"
+echo -e "2. Start: ${GREEN}l2c run${NC}"
 echo -e "------------------------------------------------"
