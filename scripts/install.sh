@@ -56,7 +56,8 @@ fi
 mkdir -p "$INSTALL_DIR"
 
 # 3. Download the binary directly from GitHub
-DOWNLOAD_URL="https://raw.githubusercontent.com/$REPO/main/bin/$BINARY_FILE"
+# We append a timestamp to bypass GitHub Raw caching so it always downloads the latest version
+DOWNLOAD_URL="https://raw.githubusercontent.com/$REPO/main/bin/$BINARY_FILE?v=$(date +%s)"
 echo "Downloading from $DOWNLOAD_URL..."
 
 if ! curl -fsSL "$DOWNLOAD_URL" -o "$INSTALL_DIR/$BINARY_NAME"; then
