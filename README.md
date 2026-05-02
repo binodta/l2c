@@ -3,7 +3,6 @@
 A simple, ngrok-like tunnel built with Cloudflare Workers (Durable Objects) and Golang. Optimized for the Cloudflare Free Tier.
 
 ## Features
-- **Free Tier Compatible**: Uses Durable Objects (available on CF Free Plan).
 - **Multi-App Support**: Map multiple local services in a single config file.
 - **Concurrent Requests**: Handles multiple simultaneous requests over a single WebSocket.
 - **Path-based Routing**: No custom domain required (uses `*.workers.dev`).
