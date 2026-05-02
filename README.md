@@ -1,8 +1,7 @@
 # l2c-proxy (Local to Cloud Proxy)
 
-A simple, ngrok-like tunnel built with Cloudflare Workers (Durable Objects) and Golang. Optimized for the Cloudflare Free Tier.
+A Local-to-Cloud Proxy uses Cloudflare Workers to create a secure tunnel between your local machine and the internet, allowing services running on localhost to be accessed via a public URL without opening ports or configuring firewalls.
 
-## Features
 - **Multi-App Support**: Map multiple local services in a single config file.
 - **Concurrent Requests**: Handles multiple simultaneous requests over a single WebSocket.
 - **Path-based Routing**: No custom domain required (uses `*.workers.dev`).
