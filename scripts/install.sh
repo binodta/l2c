@@ -25,10 +25,37 @@ mkdir -p "$INSTALL_DIR"
 echo "Downloading source code..."
 curl -sL "https://github.com/$REPO/archive/refs/heads/main.tar.gz" | tar xz -C "$INSTALL_DIR" --strip-components=1
 
-# 3. Enter directory and run the existing setup script
+# 3. Platform Detection and Binary Setup
 cd "$INSTALL_DIR"
-chmod +x scripts/setup.sh
-./scripts/setup.sh
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+
+case "$OS" in
+    linux)
+        BINARY="l2c-linux-amd64"
+        ;;
+    darwin)
+        if [ "$ARCH" == "arm64" ]; then
+            BINARY="l2c-darwin-arm64"
+        else
+            BINARY="l2c-darwin-amd64"
+        fi
+        ;;
+    *)
+        echo -e "${RED}Error: Unsupported OS ($OS).${NC}"
+        exit 1
+        ;;
+esac
+
+if [ -f "bin/$BINARY" ]; then
+    echo -e "Installing binary for ${BLUE}$OS-$ARCH${NC}..."
+    cp "bin/$BINARY" ./l2c
+    chmod +x l2c
+    ./l2c setup
+else
+    echo -e "${RED}Error: Binary $BINARY not found in the package.${NC}"
+    exit 1
+fi
 
 # 4. Success message and PATH instruction
 echo -e "\n${GREEN}l2c is successfully installed in $INSTALL_DIR${NC}"
