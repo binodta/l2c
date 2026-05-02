@@ -16,6 +16,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	maxBackoff     = 30 * time.Second
+	initialBackoff = 1 * time.Second
+)
+
 type Client struct {
 	serverAddr string
 	tunnelID   string
@@ -24,6 +29,7 @@ type Client struct {
 	conn       *websocket.Conn
 	mu         sync.Mutex
 	stopChan   chan struct{}
+	stopped    bool
 }
 
 type ProxyRequest struct {
@@ -53,17 +59,68 @@ func NewClient(serverAddr, tunnelID, localAddr, token string) *Client {
 	}
 }
 
+// Start connects and automatically reconnects on failure until Stop() is called.
 func (c *Client) Start() error {
-	// Check if local server is running
-	if err := c.checkLocalServer(); err != nil {
-		return err
-	}
+	backoff := initialBackoff
+	attempt := 0
 
+	for {
+		// Check if we've been asked to stop
+		select {
+		case <-c.stopChan:
+			return nil
+		default:
+		}
+
+		if attempt > 0 {
+			log.Printf("⟳  [%s] Reconnecting in %s... (attempt %d)", c.tunnelID, backoff, attempt)
+			select {
+			case <-c.stopChan:
+				return nil
+			case <-time.After(backoff):
+			}
+			// Exponential backoff, capped at maxBackoff
+			backoff *= 2
+			if backoff > maxBackoff {
+				backoff = maxBackoff
+			}
+		}
+
+		err := c.connect()
+		if err != nil {
+			// Fatal errors: don't retry
+			if isFatal(err) {
+				log.Printf("✗  [%s] Fatal error: %v", c.tunnelID, err)
+				return err
+			}
+			log.Printf("✗  [%s] Connection error: %v", c.tunnelID, err)
+			attempt++
+			continue
+		}
+
+		// Connected — reset backoff
+		backoff = initialBackoff
+		attempt = 0
+
+		// Block until connection drops or stop is called
+		c.listen()
+
+		// Check if stopped intentionally
+		select {
+		case <-c.stopChan:
+			return nil
+		default:
+			log.Printf("⚠  [%s] Connection lost. Will reconnect...", c.tunnelID)
+			attempt++
+		}
+	}
+}
+
+func (c *Client) connect() error {
 	u := url.URL{Scheme: "wss", Host: c.serverAddr, Path: fmt.Sprintf("/connect/%s", c.tunnelID)}
-	log.Printf("Connecting to %s", u.String())
 
 	dialer := websocket.Dialer{
-		HandshakeTimeout: 10 * time.Second,
+		HandshakeTimeout: 15 * time.Second,
 	}
 
 	header := http.Header{}
@@ -75,42 +132,69 @@ func (c *Client) Start() error {
 	conn, resp, err := dialer.Dial(u.String(), header)
 	if err != nil {
 		if resp != nil {
-			log.Printf("Dial failed with status: %d", resp.StatusCode)
-			body, _ := io.ReadAll(resp.Body)
-			log.Printf("Response body: %s", string(body))
+			switch resp.StatusCode {
+			case http.StatusUnauthorized, http.StatusForbidden:
+				return &fatalError{fmt.Sprintf("Authentication failed (HTTP %d). Check your token in ~/.l2c/config.json", resp.StatusCode)}
+			case http.StatusNotFound:
+				return &fatalError{fmt.Sprintf("Tunnel endpoint not found (HTTP 404). Make sure the worker is deployed at %s", c.serverAddr)}
+			case http.StatusServiceUnavailable:
+				return fmt.Errorf("worker is unavailable (HTTP 503) — it may be starting up")
+			default:
+				body, _ := io.ReadAll(resp.Body)
+				return fmt.Errorf("server returned HTTP %d: %s", resp.StatusCode, string(body))
+			}
 		}
-		return fmt.Errorf("dial: %v", err)
+		// DNS / network level failure
+		if isNetworkUnreachable(err) {
+			return fmt.Errorf("cannot reach worker at %s — check your internet connection or worker URL", c.serverAddr)
+		}
+		return fmt.Errorf("dial failed: %v", err)
 	}
-	c.conn = conn
-	log.Printf("Connected successfully!")
 
-	go c.listen()
+	c.mu.Lock()
+	c.conn = conn
+	c.mu.Unlock()
+
+	log.Printf("✓  [%s] Connected → https://%s/t/%s/", c.tunnelID, c.serverAddr, c.tunnelID)
 	return nil
 }
 
 func (c *Client) listen() {
-	defer c.conn.Close()
+	defer func() {
+		c.mu.Lock()
+		if c.conn != nil {
+			c.conn.Close()
+			c.conn = nil
+		}
+		c.mu.Unlock()
+	}()
 
 	for {
 		select {
 		case <-c.stopChan:
 			return
 		default:
-			_, message, err := c.conn.ReadMessage()
-			if err != nil {
-				log.Printf("read error: %v", err)
-				return
-			}
+		}
 
-			var req ProxyRequest
-			if err := json.Unmarshal(message, &req); err != nil {
-				log.Printf("json unmarshal error: %v", err)
-				continue
+		_, message, err := c.conn.ReadMessage()
+		if err != nil {
+			// Suppress noisy "use of closed" errors on intentional stop
+			select {
+			case <-c.stopChan:
+			default:
+				log.Printf("⚠  [%s] Read error: %v", c.tunnelID, err)
 			}
+			return
+		}
 
-			if req.Type == "req" {
-				go c.handleRequest(req)
-			}
+		var req ProxyRequest
+		if err := json.Unmarshal(message, &req); err != nil {
+			log.Printf("⚠  [%s] Bad message: %v", c.tunnelID, err)
+			continue
+		}
+
+		if req.Type == "req" {
+			go c.handleRequest(req)
 		}
 	}
 }
@@ -137,19 +221,11 @@ func (c *Client) handleRequest(req ProxyRequest) {
 		httpReq.Header.Set(k, v)
 	}
 
-	httpClient := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
+	httpClient := &http.Client{Timeout: 30 * time.Second}
 	resp, err := httpClient.Do(httpReq)
 	if err != nil {
-		log.Printf("do request error: %v", err)
-		c.sendResponse(ProxyResponse{
-			Type:   "res",
-			ID:     req.ID,
-			Status: 502,
-			Body:   nil,
-		})
+		log.Printf("⚠  [%s] Local server error: %v", c.tunnelID, err)
+		c.sendResponse(ProxyResponse{Type: "res", ID: req.ID, Status: 502})
 		return
 	}
 	defer resp.Body.Close()
@@ -171,40 +247,69 @@ func (c *Client) handleRequest(req ProxyRequest) {
 	})
 }
 
+func (c *Client) sendResponse(res ProxyResponse) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.conn == nil {
+		return
+	}
+	data, _ := json.Marshal(res)
+	if err := c.conn.WriteMessage(websocket.TextMessage, data); err != nil {
+		log.Printf("write error: %v", err)
+	}
+}
+
 func (c *Client) checkLocalServer() error {
 	u, err := url.Parse(c.localAddr)
 	if err != nil {
 		return fmt.Errorf("invalid local address: %v", err)
 	}
-
 	host := u.Host
 	if host == "" {
 		return fmt.Errorf("invalid local address: host is empty")
 	}
-
-	// Try to connect to the host
 	conn, err := net.DialTimeout("tcp", host, 2*time.Second)
 	if err != nil {
-		return fmt.Errorf("local server at %s is not reachable. Make sure your local app is running on this port", c.localAddr)
+		return fmt.Errorf("local server at %s is not reachable. Make sure your app is running", c.localAddr)
 	}
 	conn.Close()
 	return nil
 }
 
-func (c *Client) sendResponse(res ProxyResponse) {
+func (c *Client) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	data, _ := json.Marshal(res)
-	if err := c.conn.WriteMessage(websocket.TextMessage, data); err != nil {
-		log.Printf("write message error: %v", err)
+	if c.stopped {
+		return
 	}
-}
-
-func (c *Client) Stop() {
+	c.stopped = true
 	close(c.stopChan)
+
 	if c.conn != nil {
 		c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 		c.conn.Close()
+		c.conn = nil
 	}
+}
+
+// fatalError is a non-retryable error (e.g. auth failure).
+type fatalError struct{ msg string }
+
+func (e *fatalError) Error() string { return e.msg }
+
+func isFatal(err error) bool {
+	_, ok := err.(*fatalError)
+	return ok
+}
+
+func isNetworkUnreachable(err error) bool {
+	if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+		return true
+	}
+	if _, ok := err.(*net.DNSError); ok {
+		return true
+	}
+	return false
 }
