@@ -18,6 +18,12 @@ echo -e "${BLUE}Installing l2c (Local to Cloud)...${NC}"
 # 1. Detect OS and architecture
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
+IS_WSL=false
+
+# Detect WSL (Windows Subsystem for Linux)
+if [ -f /proc/version ] && grep -qi "microsoft\|wsl" /proc/version 2>/dev/null; then
+    IS_WSL=true
+fi
 
 case "$OS" in
     linux)
@@ -31,11 +37,16 @@ case "$OS" in
         fi
         ;;
     *)
-        echo -e "${RED}Error: Unsupported OS ($OS). Only Linux and macOS are supported.${NC}"
+        echo -e "${RED}Error: Unsupported OS ($OS).${NC}"
+        echo -e "Windows users: please run this inside WSL (Windows Subsystem for Linux)."
+        echo -e "Install WSL: ${BLUE}https://aka.ms/wsl${NC}"
         exit 1
         ;;
 esac
 
+if [ "$IS_WSL" = true ]; then
+    echo -e "Detected: ${BLUE}Windows Subsystem for Linux (WSL)${NC}"
+fi
 echo -e "Detected platform: ${BLUE}$OS/$ARCH${NC} → downloading ${BINARY_FILE}"
 
 # 2. Create install directory (clean if exists)
