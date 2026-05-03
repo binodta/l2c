@@ -1,3 +1,5 @@
+import { landingPageHTML } from "./html";
+
 export class Tunnel implements DurableObject {
   private state: DurableObjectState;
   private clientWs: WebSocket | null = null;
@@ -42,7 +44,10 @@ export class Tunnel implements DurableObject {
 
     // Handle public traffic to be proxied
     if (!this.clientWs) {
-      return new Response("Tunnel not connected", { status: 503 });
+      return new Response(landingPageHTML, { 
+        status: 503,
+        headers: { "Content-Type": "text/html; charset=utf-8" }
+      });
     }
 
     const requestId = crypto.randomUUID();

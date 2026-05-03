@@ -1,4 +1,5 @@
 import { Tunnel } from "./tunnel";
+import { landingPageHTML } from "./html";
 
 export interface Env {
   TUNNELS: DurableObjectNamespace;
@@ -48,7 +49,10 @@ export default {
       return obj.fetch(newRequest);
     }
 
-    return new Response("l2c-proxy: invalid tunnel path", { status: 404 });
+    return new Response(landingPageHTML, { 
+      status: 404,
+      headers: { "Content-Type": "text/html; charset=utf-8" }
+    });
   }
 };
 
