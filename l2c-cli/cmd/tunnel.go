@@ -147,6 +147,7 @@ var (
 	addTunnelID    string
 	addTunnelLocal string
 	addConfigPath  string
+	addRewriteHost bool
 )
 
 var tunnelAddCmd = &cobra.Command{
@@ -185,8 +186,9 @@ var tunnelAddCmd = &cobra.Command{
 		}
 
 		cfg.Tunnels = append(cfg.Tunnels, TunnelConfig{
-			ID:    addTunnelID,
-			Local: normLocal,
+			ID:          addTunnelID,
+			Local:       normLocal,
+			RewriteHost: addRewriteHost,
 		})
 
 		if err := saveConfig(addConfigPath, cfg); err != nil {
@@ -330,6 +332,7 @@ func init() {
 	// tunnel add
 	tunnelAddCmd.Flags().StringVar(&addTunnelID, "id", "", "Unique tunnel ID — lowercase letters, digits, hyphens (e.g. my-api)")
 	tunnelAddCmd.Flags().StringVar(&addTunnelLocal, "local", "", "Local address to forward to (e.g. http://localhost:3000)")
+	tunnelAddCmd.Flags().BoolVar(&addRewriteHost, "rewrite-host", false, "Rewrite the Host header to match the local address")
 	tunnelAddCmd.Flags().StringVarP(&addConfigPath, "config", "c", cfgDefault, "Path to config file")
 
 	// tunnel list

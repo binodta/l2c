@@ -22,10 +22,11 @@ const (
 )
 
 type Client struct {
-	serverAddr string
-	tunnelID   string
-	localAddr  string
-	token      string
+	serverAddr  string
+	tunnelID    string
+	localAddr   string
+	token       string
+	rewriteHost bool
 	conn       *websocket.Conn
 	mu         sync.Mutex
 	stopChan   chan struct{}
@@ -49,13 +50,14 @@ type ProxyResponse struct {
 	Body    *string           `json:"body"`
 }
 
-func NewClient(serverAddr, tunnelID, localAddr, token string) *Client {
+func NewClient(serverAddr, tunnelID, localAddr, token string, rewriteHost bool) *Client {
 	return &Client{
-		serverAddr: serverAddr,
-		tunnelID:   tunnelID,
-		localAddr:  localAddr,
-		token:      token,
-		stopChan:   make(chan struct{}),
+		serverAddr:  serverAddr,
+		tunnelID:    tunnelID,
+		localAddr:   localAddr,
+		token:       token,
+		rewriteHost: rewriteHost,
+		stopChan:    make(chan struct{}),
 	}
 }
 
@@ -221,6 +223,11 @@ func (c *Client) handleRequest(req ProxyRequest) {
 		httpReq.Header.Set(k, v)
 	}
 
+	if c.rewriteHost {
+		httpReq.Host = httpReq.URL.Host
+	}
+
+	start := time.Now()
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 	resp, err := httpClient.Do(httpReq)
 	if err != nil {
@@ -229,6 +236,9 @@ func (c *Client) handleRequest(req ProxyRequest) {
 		return
 	}
 	defer resp.Body.Close()
+	
+	duration := time.Since(start)
+	log.Printf("→  [%s] %-5s %s  %d %s  %s", c.tunnelID, req.Method, req.URL, resp.StatusCode, http.StatusText(resp.StatusCode), duration.Round(time.Millisecond))
 
 	respBody, _ := io.ReadAll(resp.Body)
 	respBodyEncoded := base64.StdEncoding.EncodeToString(respBody)

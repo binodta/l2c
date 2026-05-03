@@ -22,8 +22,9 @@ type Config struct {
 }
 
 type TunnelConfig struct {
-	ID    string `json:"id"`
-	Local string `json:"local"`
+	ID          string `json:"id"`
+	Local       string `json:"local"`
+	RewriteHost bool   `json:"rewrite_host,omitempty"`
 }
 
 var configPath string
@@ -68,7 +69,7 @@ var runCmd = &cobra.Command{
 		fmt.Printf("Server: %s\n\n", server)
 
 		for _, tc := range cfg.Tunnels {
-			c := client.NewClient(server, tc.ID, tc.Local, cfg.Token)
+			c := client.NewClient(server, tc.ID, tc.Local, cfg.Token, tc.RewriteHost)
 			clients = append(clients, c)
 			wg.Add(1)
 			go func(cli *client.Client, id, local string) {

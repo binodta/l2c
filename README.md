@@ -13,6 +13,7 @@
 - 🔄 **Auto-Reconnect** — Resilient WebSocket with exponential backoff
 - 🗺️ **Multi-Tunnel** — Expose multiple local services simultaneously
 - 🌐 **Custom Domains** — Bring your own domain natively
+- ⚛️ **SPA/React Support** — Intelligent fallback routing for absolute asset paths
 - ⚡ **Zero Infrastructure** — Runs entirely on Cloudflare's free tier
 - 📦 **No Dependencies** — Single binary, no Go/Node required to run
 - 🌍 **Cross-Platform** — Linux, macOS (Intel & Apple Silicon), Windows (WSL & native)
@@ -99,7 +100,7 @@ The config is saved automatically at `~/.l2c/config.json` during setup.
   "custom_domain": "api.example.com",
   "token": "your-secret-token",
   "tunnels": [
-    { "id": "app",  "local": "http://localhost:3000" },
+    { "id": "app",  "local": "http://localhost:3000", "rewrite_host": true },
     { "id": "api",  "local": "http://localhost:8080" }
   ]
 }
@@ -125,9 +126,31 @@ After making changes, simply restart `l2c run` for them to take effect.
 | `l2c domain <domain>` | Set or update your custom domain |
 | `l2c run` | Start all tunnels defined in config |
 | `l2c run --config /path/to/config.json` | Use a custom config file |
-| `l2c tunnel add --id <id> --local <url>` | Add a new tunnel |
+| `l2c tunnel add --id <id> --local <url> [--rewrite-host]` | Add a new tunnel (use `--rewrite-host` for Next.js/Vite) |
 | `l2c tunnel list` | List all configured tunnels |
 | `l2c tunnel remove --id <id>` | Remove a tunnel (use `--force` to skip prompt) |
+
+---
+
+## Framework & SPA Support
+
+`l2c` is built with modern frontend development in mind:
+
+### Next.js, Vite, and Webpack
+Strict development servers often reject requests that don't match `localhost`. If you encounter an "Invalid Host Header" error, create your tunnel with the `--rewrite-host` flag:
+
+```bash
+l2c tunnel add --id my-app --local http://localhost:3000 --rewrite-host
+```
+This forces `l2c` to rewrite the `Host` header to match your local address transparently.
+
+### React, Vue, and SPAs
+Single Page Applications usually expect to be hosted at the root domain (`/`). Because `l2c` serves your app at a path (`/my-app/`), absolute asset paths like `<script src="/assets/main.js">` would normally break. 
+
+**You don't need to change your code!** The Cloudflare Worker includes an intelligent fallback mechanism:
+1. It inspects the `Referer` header of lost requests to see if they came from a tunnel.
+2. It tracks your active tunnel using a seamless `l2c-active-tunnel` cookie.
+3. It silently reroutes the broken asset requests to your active tunnel.
 
 ---
 
