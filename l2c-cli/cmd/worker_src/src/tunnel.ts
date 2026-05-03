@@ -46,7 +46,10 @@ export class Tunnel implements DurableObject {
     if (!this.clientWs) {
       return new Response(landingPageHTML, { 
         status: 503,
-        headers: { "Content-Type": "text/html; charset=utf-8" }
+        headers: { 
+          "Content-Type": "text/html; charset=utf-8",
+          "X-L2C-Disconnected": "true"
+        }
       });
     }
 
@@ -64,12 +67,17 @@ export class Tunnel implements DurableObject {
       bodyBase64 = btoa(binary);
     }
 
+    const headers: Record<string, string[]> = {};
+    for (const [key, value] of request.headers.entries()) {
+      headers[key] = [value];
+    }
+
     const proxyRequest = {
       type: "req",
       id: requestId,
       method: request.method,
       url: url.pathname + url.search,
-      headers: Object.fromEntries(request.headers),
+      headers: headers,
       body: bodyBase64,
     };
 
@@ -81,7 +89,14 @@ export class Tunnel implements DurableObject {
 
       this.pendingRequests.set(requestId, (response: any) => {
         clearTimeout(timeout);
-        const headers = new Headers(response.headers);
+        const headers = new Headers();
+        if (response.headers) {
+          for (const [k, values] of Object.entries(response.headers)) {
+            for (const v of (values as string[])) {
+              headers.append(k, v);
+            }
+          }
+        }
         const bodyBuffer = response.body ? Uint8Array.from(atob(response.body), c => c.charCodeAt(0)) : null;
         resolve(new Response(bodyBuffer, {
           status: response.status,

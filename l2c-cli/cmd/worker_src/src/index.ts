@@ -1,5 +1,5 @@
 import { Tunnel } from "./tunnel";
-import { landingPageHTML } from "./html";
+import { landingPageHTML, getErrorPage } from "./html";
 
 export interface Env {
   TUNNELS: DurableObjectNamespace;
@@ -50,9 +50,9 @@ export default {
       let activeTunnelId = tunnelId;
 
       // SPA / React App Fallback Routing
-      // If the parsed tunnel is not connected (503), it might be an absolute path asset request
-      // like /assets/main.js where "assets" is mistakenly parsed as the tunnelId.
-      if (response.status === 503) {
+      // If the parsed tunnel is not connected (503 with X-L2C-Disconnected), 
+      // it might be an absolute path asset request like /assets/main.js
+      if (response.status === 503 && response.headers.get("X-L2C-Disconnected") === "true") {
         let fallbackTunnelId: string | null = null;
         
         // 1. Try Referer Header (e.g. referer: https://server/app-one/index.html)
@@ -71,16 +71,35 @@ export default {
         if (!fallbackTunnelId) {
           const cookieHeader = request.headers.get("Cookie") || "";
           const cookieMatch = cookieHeader.match(/l2c-active-tunnel=([^;]+)/);
-          if (cookieMatch) fallbackTunnelId = cookieMatch[1];
+          if (cookieMatch) {
+            const tid = cookieMatch[1];
+            const isNavigate = request.headers.get("Sec-Fetch-Mode") === "navigate";
+            const hasExtension = url.pathname.includes(".");
+            
+            // Only fallback via cookie for navigations if they look like assets (have extension)
+            // This prevents /app-two falling back to app-one just because of a cookie.
+            // Referer-based fallback still works for all types.
+            if (!isNavigate || hasExtension) {
+              fallbackTunnelId = tid;
+            }
+          }
         }
 
         if (fallbackTunnelId && fallbackTunnelId !== tunnelId) {
            // Pass the ENTIRE original pathname to the fallback tunnel
            const fallbackResponse = await doFetch(fallbackTunnelId, url.pathname);
-           if (fallbackResponse.status !== 503) {
+           if (fallbackResponse.status !== 503 || fallbackResponse.headers.get("X-L2C-Disconnected") !== "true") {
              response = fallbackResponse;
              activeTunnelId = fallbackTunnelId;
            }
+        }
+
+        // Final check: if still disconnected, show a helpful error page
+        if (response.status === 503 && response.headers.get("X-L2C-Disconnected") === "true") {
+          return new Response(getErrorPage("Not Connected", `Tunnel <code>${tunnelId}</code> is not currently connected. Ensure your local service is running and you have started the tunnel with <code>l2c run</code>.`), {
+            status: 503,
+            headers: { "Content-Type": "text/html; charset=utf-8" }
+          });
         }
       }
 

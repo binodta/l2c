@@ -31,23 +31,24 @@ type Client struct {
 	mu         sync.Mutex
 	stopChan   chan struct{}
 	stopped    bool
+	httpClient *http.Client
 }
 
 type ProxyRequest struct {
-	Type    string            `json:"type"`
-	ID      string            `json:"id"`
-	Method  string            `json:"method"`
-	URL     string            `json:"url"`
-	Headers map[string]string `json:"headers"`
-	Body    *string           `json:"body"`
+	Type    string              `json:"type"`
+	ID      string              `json:"id"`
+	Method  string              `json:"method"`
+	URL     string              `json:"url"`
+	Headers map[string][]string `json:"headers"`
+	Body    *string             `json:"body"`
 }
 
 type ProxyResponse struct {
-	Type    string            `json:"type"`
-	ID      string            `json:"id"`
-	Status  int               `json:"status"`
-	Headers map[string]string `json:"headers"`
-	Body    *string           `json:"body"`
+	Type    string              `json:"type"`
+	ID      string              `json:"id"`
+	Status  int                 `json:"status"`
+	Headers map[string][]string `json:"headers"`
+	Body    *string             `json:"body"`
 }
 
 func NewClient(serverAddr, tunnelID, localAddr, token string, rewriteHost bool) *Client {
@@ -58,6 +59,7 @@ func NewClient(serverAddr, tunnelID, localAddr, token string, rewriteHost bool) 
 		token:       token,
 		rewriteHost: rewriteHost,
 		stopChan:    make(chan struct{}),
+		httpClient:  &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -219,8 +221,10 @@ func (c *Client) handleRequest(req ProxyRequest) {
 		return
 	}
 
-	for k, v := range req.Headers {
-		httpReq.Header.Set(k, v)
+	for k, values := range req.Headers {
+		for _, v := range values {
+			httpReq.Header.Add(k, v)
+		}
 	}
 
 	if c.rewriteHost {
@@ -228,8 +232,7 @@ func (c *Client) handleRequest(req ProxyRequest) {
 	}
 
 	start := time.Now()
-	httpClient := &http.Client{Timeout: 30 * time.Second}
-	resp, err := httpClient.Do(httpReq)
+	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		log.Printf("⚠  [%s] Local server error: %v", c.tunnelID, err)
 		c.sendResponse(ProxyResponse{Type: "res", ID: req.ID, Status: 502})
@@ -243,9 +246,9 @@ func (c *Client) handleRequest(req ProxyRequest) {
 	respBody, _ := io.ReadAll(resp.Body)
 	respBodyEncoded := base64.StdEncoding.EncodeToString(respBody)
 
-	headers := make(map[string]string)
+	headers := make(map[string][]string)
 	for k, v := range resp.Header {
-		headers[k] = v[0]
+		headers[k] = v
 	}
 
 	c.sendResponse(ProxyResponse{
