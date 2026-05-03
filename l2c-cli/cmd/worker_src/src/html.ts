@@ -17,7 +17,7 @@ export const landingPageHTML = `
 </head>
 <body>
   <div class="container">
-    <h1>l2c Proxy</h1>
+    <h1>l2c</h1>
     <p>This is a tunneling server powered by <strong>l2c</strong>.</p>
     <p>It looks like you're trying to access a service that isn't currently configured or active. Ensure your tunnel is running using <code>l2c run</code> on your local machine.</p>
     <a href="https://github.com/binodta/l2c" target="_blank" rel="noopener noreferrer">View l2c on GitHub</a>

@@ -15,7 +15,7 @@ import (
 
 var domainCmd = &cobra.Command{
 	Use:   "domain <custom-domain>",
-	Short: "Update the custom domain for the tunneling proxy",
+	Short: "Update the custom domain for the tunneling ",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		customDomain := strings.TrimSpace(args[0])
@@ -31,7 +31,7 @@ var domainCmd = &cobra.Command{
 		// 1. Read existing config
 		home, _ := os.UserHomeDir()
 		configPath := filepath.Join(home, ".l2c", "config.json")
-		
+
 		data, err := os.ReadFile(configPath)
 		if err != nil {
 			fmt.Printf("Error: config file not found at %s. Please run 'l2c setup' first.\n", configPath)
@@ -126,10 +126,10 @@ var domainCmd = &cobra.Command{
 			content := string(tomlData)
 			content = strings.Replace(content, `AUTH_TOKEN = ""`, fmt.Sprintf(`AUTH_TOKEN = "%s"`, cfg.Token), 1)
 			content = strings.Replace(content, `AUTH_TOKEN=""`, fmt.Sprintf(`AUTH_TOKEN="%s"`, cfg.Token), 1)
-			
+
 			// Append the custom domain routes block
 			content += fmt.Sprintf("\n\n[[routes]]\npattern = \"%s\"\ncustom_domain = true\n", customDomain)
-			
+
 			os.WriteFile(tomlPath, []byte(content), 0644)
 		}
 
@@ -137,11 +137,11 @@ var domainCmd = &cobra.Command{
 		fmt.Printf("Deploying Cloudflare Worker to %s...\n", customDomain)
 		deployCmd := runWrangler("deploy")
 		deployCmd.Dir = tempDir
-		
+
 		var deployOut strings.Builder
 		deployCmd.Stdout = io.MultiWriter(os.Stdout, &deployOut)
 		deployCmd.Stderr = os.Stderr
-		
+
 		if err := deployCmd.Run(); err != nil {
 			fmt.Printf("\nError deploying worker: %v\n", err)
 			fmt.Println("Make sure you have an active Cloudflare account, are logged in, and the domain is valid in your Cloudflare account.")

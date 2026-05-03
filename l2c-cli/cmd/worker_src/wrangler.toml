@@ -1,4 +1,4 @@
-name = "l2c-proxy"
+name = "l2c"
 main = "src/index.ts"
 compatibility_date = "2024-04-01"
 workers_dev = true

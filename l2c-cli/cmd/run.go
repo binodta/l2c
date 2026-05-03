@@ -64,7 +64,7 @@ var runCmd = &cobra.Command{
 		var wg sync.WaitGroup
 		clients := make([]*client.Client, 0)
 
-		fmt.Printf("l2c-proxy starting...\n")
+		fmt.Printf("l2c starting...\n")
 		fmt.Printf("Server: %s\n\n", server)
 
 		for _, tc := range cfg.Tunnels {

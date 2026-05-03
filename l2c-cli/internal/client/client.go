@@ -124,7 +124,7 @@ func (c *Client) connect() error {
 	}
 
 	header := http.Header{}
-	header.Set("User-Agent", "l2c-proxy-client/1.0")
+	header.Set("User-Agent", "l2c-client/1.0")
 	if c.token != "" {
 		header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 	}

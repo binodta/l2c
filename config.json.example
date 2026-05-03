@@ -1,5 +1,5 @@
 {
-  "worker_url": "l2c-proxy.bomzzn.workers.dev",
+  "worker_url": "l2c.bomzzn.workers.dev",
   "custom_domain": "api.example.com",
   "token": "your-secret-token",
   "tunnels": [

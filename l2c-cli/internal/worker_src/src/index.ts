@@ -48,7 +48,7 @@ export default {
       return obj.fetch(newRequest);
     }
 
-    return new Response("l2c-proxy: use /t/:id/ to access a tunnel", { status: 404 });
+    return new Response("l2c: use /:id/ to access a tunnel", { status: 404 });
   }
 };
 

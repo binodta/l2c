@@ -11,7 +11,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("%s %s %s", r.Method, r.URL.Path, r.RemoteAddr)
-		fmt.Fprintf(w, "<h1>l2c-proxy Test Server</h1>")
+		fmt.Fprintf(w, "<h1>l2c Test Server</h1>")
 		fmt.Fprintf(w, "<h3>It works!</h3>")
 		fmt.Fprintf(w, "<p>Time: %s</p>", time.Now().Format(time.RFC1123))
 		fmt.Fprintf(w, "<p>Method: %s</p>", r.Method)
