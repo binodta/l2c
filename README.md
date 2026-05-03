@@ -12,6 +12,7 @@
 - 🔒 **Secure** — Token-based authentication baked into every request
 - 🔄 **Auto-Reconnect** — Resilient WebSocket with exponential backoff
 - 🗺️ **Multi-Tunnel** — Expose multiple local services simultaneously
+- 🌐 **Custom Domains** — Bring your own domain natively
 - ⚡ **Zero Infrastructure** — Runs entirely on Cloudflare's free tier
 - 📦 **No Dependencies** — Single binary, no Go/Node required to run
 - 🌍 **Cross-Platform** — Linux, macOS (Intel & Apple Silicon), Windows (WSL & native)
@@ -72,8 +73,9 @@ l2c run
 
 Your local services are now live at:
 ```
-https://<your-worker>.workers.dev/t/<tunnel-id>/
+https://<your-worker>.workers.dev/<tunnel-id>/
 ```
+*(Or your custom domain if configured)*
 
 ---
 
@@ -81,6 +83,7 @@ https://<your-worker>.workers.dev/t/<tunnel-id>/
 
 - A **Cloudflare account** (free tier works)
 - **Node.js** — required only during `l2c setup` to deploy the worker via `npx wrangler`
+- *(Optional)* **Cloudflare Domain** — to use the custom domain feature, the domain must be active as a Zone in your Cloudflare account.
 
 > After setup, only the `l2c` binary is needed to run tunnels.
 
@@ -92,7 +95,8 @@ The config is saved automatically at `~/.l2c/config.json` during setup.
 
 ```json
 {
-  "server": "your-worker.workers.dev",
+  "worker_url": "your-worker.workers.dev",
+  "custom_domain": "api.example.com",
   "token": "your-secret-token",
   "tunnels": [
     { "id": "app",  "local": "http://localhost:3000" },
@@ -118,6 +122,7 @@ After making changes, simply restart `l2c run` for them to take effect.
 | Command | Description |
 |---|---|
 | `l2c setup` | Deploy worker & configure credentials interactively |
+| `l2c domain <domain>` | Set or update your custom domain |
 | `l2c run` | Start all tunnels defined in config |
 | `l2c run --config /path/to/config.json` | Use a custom config file |
 | `l2c tunnel add --id <id> --local <url>` | Add a new tunnel |
@@ -139,7 +144,7 @@ Cloudflare Worker  ──── WebSocket ────  l2c (your machine)
 ```
 
 1. **`l2c run`** connects to your Cloudflare Worker over a persistent WebSocket.
-2. Incoming requests to `https://<worker>/t/<id>/` are forwarded over the socket.
+2. Incoming requests to `https://<worker>/<id>/` are forwarded over the socket.
 3. `l2c` proxies the request to your local service and returns the response.
 4. If the connection drops, `l2c` automatically reconnects with exponential backoff.
 

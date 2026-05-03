@@ -81,7 +81,7 @@ var runCmd = &cobra.Command{
 
 		fmt.Printf("\nAll tunnels active! Press Ctrl+C to stop.\n")
 		for _, tc := range cfg.Tunnels {
-			fmt.Printf("- %s: https://%s/t/%s/ -> %s\n", tc.ID, server, tc.ID, tc.Local)
+			fmt.Printf("- %s: https://%s/%s/ -> %s\n", tc.ID, server, tc.ID, tc.Local)
 		}
 
 		<-interrupt

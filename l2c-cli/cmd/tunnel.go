@@ -24,6 +24,9 @@ func validateTunnelID(id string) error {
 	if id == "" {
 		return fmt.Errorf("tunnel ID must not be empty")
 	}
+	if id == "connect" {
+		return fmt.Errorf("tunnel ID 'connect' is reserved")
+	}
 	if len(id) > 63 {
 		return fmt.Errorf("tunnel ID must be 63 characters or fewer (got %d)", len(id))
 	}
@@ -199,7 +202,7 @@ var tunnelAddCmd = &cobra.Command{
 		}
 
 		fmt.Printf("✓ Tunnel %q added → %s\n", addTunnelID, normLocal)
-		fmt.Printf("  Public URL: https://%s/t/%s/\n", server, addTunnelID)
+		fmt.Printf("  Public URL: https://%s/%s/\n", server, addTunnelID)
 		return nil
 	},
 }
@@ -241,7 +244,7 @@ var tunnelListCmd = &cobra.Command{
 			"----------",
 		)
 		for _, t := range cfg.Tunnels {
-			fmt.Printf("%-20s  %-30s  https://%s/t/%s/\n", t.ID, t.Local, server, t.ID)
+			fmt.Printf("%-20s  %-30s  https://%s/%s/\n", t.ID, t.Local, server, t.ID)
 		}
 		return nil
 	},

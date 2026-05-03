@@ -30,8 +30,8 @@ export default {
       return obj.fetch(request);
     }
 
-    // Public traffic: /t/:id/*
-    const publicMatch = url.pathname.match(/^\/t\/([^\/]+)(\/.*)?/);
+    // Public traffic: /:id/*
+    const publicMatch = url.pathname.match(/^\/([^\/]+)(\/.*)?/);
     if (publicMatch) {
       const tunnelId = publicMatch[1];
       const remainingPath = publicMatch[2] || "/";
@@ -40,7 +40,7 @@ export default {
       const id = env.TUNNELS.idFromName(tunnelId);
       const obj = env.TUNNELS.get(id);
 
-      // Rewrite URL to strip the /t/:id prefix before sending to DO
+      // Rewrite URL to strip the /:id prefix before sending to DO
       const newUrl = new URL(url);
       newUrl.pathname = remainingPath;
       const newRequest = new Request(newUrl.toString(), request);
@@ -48,7 +48,7 @@ export default {
       return obj.fetch(newRequest);
     }
 
-    return new Response("l2c-proxy: use /t/:id/ to access a tunnel", { status: 404 });
+    return new Response("l2c-proxy: invalid tunnel path", { status: 404 });
   }
 };
 
