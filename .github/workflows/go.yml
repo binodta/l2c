@@ -14,15 +14,39 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v6
       with:
-        go-version: '1.20'
+        go-version-file: 'l2c-cli/go.mod'
+        cache-dependency-path: l2c-cli/go.sum
 
     - name: Build
-      run: go build -v ./...
+      run: make build-all
 
     - name: Test
+      working-directory: l2c-cli
       run: go test -v ./...
+
+    - name: Upload Binaries
+      uses: actions/upload-artifact@v6
+      with:
+        name: l2c-binaries
+        path: bin/
+
+    - name: Create Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: latest
+        name: "Latest Build"
+        files: |
+          bin/l2c-linux-amd64
+          bin/l2c-darwin-amd64
+          bin/l2c-darwin-arm64
+          bin/l2c-windows-amd64.exe
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

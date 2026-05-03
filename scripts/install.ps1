@@ -6,8 +6,7 @@ $ErrorActionPreference = "Stop"
 $Repo = "binodta/l2c"
 $InstallDir = "$env:USERPROFILE\.l2c"
 $BinaryName = "l2c.exe"
-$Timestamp = [int][double]::Parse((Get-Date -UFormat %s))
-$DownloadUrl = "https://raw.githubusercontent.com/$Repo/main/bin/l2c-windows-amd64.exe?v=$Timestamp"
+$DownloadUrl = "https://github.com/$Repo/releases/download/latest/l2c-windows-amd64.exe"
 
 Write-Host "Installing l2c (Local to Cloud)..." -ForegroundColor Cyan
 

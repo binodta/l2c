@@ -23,3 +23,6 @@ config.json
 # OS specific
 .DS_Store
 Thumbs.db
+
+# Binaries
+bin/
