@@ -6,8 +6,12 @@ name: Go
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - 'l2c-cli/**'
   pull_request:
     branches: [ "main" ]
+    paths:
+      - 'l2c-cli/**'
 
 jobs:
 
