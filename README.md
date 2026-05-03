@@ -1,6 +1,6 @@
 # l2c — Local to Cloud
 
-> A lightweight, ngrok-like tunneling tool powered by Cloudflare Workers. Expose any local service to the internet instantly — no open ports, no firewalls, no paid plans.
+> A lightweight, tunneling tool powered by Cloudflare Workers. Expose any local service to the internet instantly — no open ports, no firewalls, no paid plans.
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-blue)](https://github.com/binodta/l2c)
 [![Powered by](https://img.shields.io/badge/powered%20by-Cloudflare%20Workers-orange)](https://workers.cloudflare.com/)
@@ -17,6 +17,35 @@
 - ⚡ **Zero Infrastructure** — Runs entirely on Cloudflare's free tier
 - 📦 **No Dependencies** — Single binary, no Go/Node required to run
 - 🌍 **Cross-Platform** — Linux, macOS (Intel & Apple Silicon), Windows (WSL & native)
+
+---
+
+## How It Works
+
+```
+Internet Request
+      │
+      ▼
+Cloudflare Worker  ──── WebSocket ────  l2c (your machine)
+  (*.workers.dev)                            │
+                                             ▼
+                                      localhost:PORT
+```
+
+1. **`l2c run`** connects to your Cloudflare Worker over a persistent WebSocket.
+2. Incoming requests to `https://<worker>/<id>/` are forwarded over the socket.
+3. `l2c` proxies the request to your local service and returns the response.
+4. If the connection drops, `l2c` automatically reconnects with exponential backoff.
+
+---
+
+## Prerequisites
+
+- A **Cloudflare account** (free tier works)
+- **Node.js** — required only during `l2c setup` to deploy the worker via `npx wrangler`
+- *(Optional)* **Cloudflare Domain** — to use the custom domain feature, the domain must be active as a Zone in your Cloudflare account.
+
+> After setup, only the `l2c` binary is needed to run tunnels.
 
 ---
 
@@ -80,13 +109,17 @@ https://<your-worker>.workers.dev/<tunnel-id>/
 
 ---
 
-## Prerequisites
+## Commands
 
-- A **Cloudflare account** (free tier works)
-- **Node.js** — required only during `l2c setup` to deploy the worker via `npx wrangler`
-- *(Optional)* **Cloudflare Domain** — to use the custom domain feature, the domain must be active as a Zone in your Cloudflare account.
-
-> After setup, only the `l2c` binary is needed to run tunnels.
+| Command | Description |
+|---|---|
+| `l2c setup` | Deploy worker & configure credentials interactively |
+| `l2c domain <domain>` | Set or update your custom domain |
+| `l2c run` | Start all tunnels defined in config |
+| `l2c run --config /path/to/config.json` | Use a custom config file |
+| `l2c tunnel add --id <id> --local <url> [--rewrite-host]` | Add a new tunnel (use `--rewrite-host` for Next.js/Vite) |
+| `l2c tunnel list` | List all configured tunnels |
+| `l2c tunnel remove --id <id>` | Remove a tunnel (use `--force` to skip prompt) |
 
 ---
 
@@ -118,20 +151,6 @@ After making changes, simply restart `l2c run` for them to take effect.
 
 ---
 
-## Commands
-
-| Command | Description |
-|---|---|
-| `l2c setup` | Deploy worker & configure credentials interactively |
-| `l2c domain <domain>` | Set or update your custom domain |
-| `l2c run` | Start all tunnels defined in config |
-| `l2c run --config /path/to/config.json` | Use a custom config file |
-| `l2c tunnel add --id <id> --local <url> [--rewrite-host]` | Add a new tunnel (use `--rewrite-host` for Next.js/Vite) |
-| `l2c tunnel list` | List all configured tunnels |
-| `l2c tunnel remove --id <id>` | Remove a tunnel (use `--force` to skip prompt) |
-
----
-
 ## Framework & SPA Support
 
 `l2c` is built with modern frontend development in mind:
@@ -151,25 +170,6 @@ Single Page Applications usually expect to be hosted at the root domain (`/`). B
 1. It inspects the `Referer` header of lost requests to see if they came from a tunnel.
 2. It tracks your active tunnel using a seamless `l2c-active-tunnel` cookie.
 3. It silently reroutes the broken asset requests to your active tunnel.
-
----
-
-## How It Works
-
-```
-Internet Request
-      │
-      ▼
-Cloudflare Worker  ──── WebSocket ────  l2c (your machine)
-  (*.workers.dev)                            │
-                                             ▼
-                                      localhost:PORT
-```
-
-1. **`l2c run`** connects to your Cloudflare Worker over a persistent WebSocket.
-2. Incoming requests to `https://<worker>/<id>/` are forwarded over the socket.
-3. `l2c` proxies the request to your local service and returns the response.
-4. If the connection drops, `l2c` automatically reconnects with exponential backoff.
 
 ---
 
