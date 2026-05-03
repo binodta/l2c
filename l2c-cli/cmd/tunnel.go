@@ -190,8 +190,16 @@ var tunnelAddCmd = &cobra.Command{
 			return fmt.Errorf("error saving config: %w", err)
 		}
 
+		server := cfg.CustomDomain
+		if server == "" {
+			server = cfg.WorkerURL
+		}
+		if server == "" {
+			return fmt.Errorf("neither worker_url nor custom_domain is configured in config; please run 'l2c setup'")
+		}
+
 		fmt.Printf("✓ Tunnel %q added → %s\n", addTunnelID, normLocal)
-		fmt.Printf("  Public URL: https://%s/t/%s/\n", cfg.Server, addTunnelID)
+		fmt.Printf("  Public URL: https://%s/t/%s/\n", server, addTunnelID)
 		return nil
 	},
 }
@@ -217,7 +225,15 @@ var tunnelListCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Printf("Server: %s\n\n", cfg.Server)
+		server := cfg.CustomDomain
+		if server == "" {
+			server = cfg.WorkerURL
+		}
+		if server == "" {
+			return fmt.Errorf("neither worker_url nor custom_domain is configured in config; please run 'l2c setup'")
+		}
+
+		fmt.Printf("Server: %s\n\n", server)
 		fmt.Printf("%-20s  %-30s  %s\n", "ID", "Local", "Public URL")
 		fmt.Printf("%-20s  %-30s  %s\n",
 			"--------------------",
@@ -225,7 +241,7 @@ var tunnelListCmd = &cobra.Command{
 			"----------",
 		)
 		for _, t := range cfg.Tunnels {
-			fmt.Printf("%-20s  %-30s  https://%s/t/%s/\n", t.ID, t.Local, cfg.Server, t.ID)
+			fmt.Printf("%-20s  %-30s  https://%s/t/%s/\n", t.ID, t.Local, server, t.ID)
 		}
 		return nil
 	},

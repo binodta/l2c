@@ -15,9 +15,10 @@ import (
 )
 
 type Config struct {
-	Server  string         `json:"server"`
-	Token   string         `json:"token"`
-	Tunnels []TunnelConfig `json:"tunnels"`
+	WorkerURL    string         `json:"worker_url,omitempty"`
+	CustomDomain string         `json:"custom_domain,omitempty"`
+	Token        string         `json:"token"`
+	Tunnels      []TunnelConfig `json:"tunnels"`
 }
 
 type TunnelConfig struct {
@@ -44,8 +45,13 @@ var runCmd = &cobra.Command{
 			log.Fatalf("Error parsing config: %v", err)
 		}
 
-		if cfg.Server == "" {
-			log.Fatal("Error: 'server' address must be specified in config.json")
+		server := cfg.CustomDomain
+		if server == "" {
+			server = cfg.WorkerURL
+		}
+
+		if server == "" {
+			log.Fatal("Error: 'worker_url' or 'custom_domain' must be specified in config.json")
 		}
 
 		if len(cfg.Tunnels) == 0 {
@@ -59,10 +65,10 @@ var runCmd = &cobra.Command{
 		clients := make([]*client.Client, 0)
 
 		fmt.Printf("l2c-proxy starting...\n")
-		fmt.Printf("Server: %s\n\n", cfg.Server)
+		fmt.Printf("Server: %s\n\n", server)
 
 		for _, tc := range cfg.Tunnels {
-			c := client.NewClient(cfg.Server, tc.ID, tc.Local, cfg.Token)
+			c := client.NewClient(server, tc.ID, tc.Local, cfg.Token)
 			clients = append(clients, c)
 			wg.Add(1)
 			go func(cli *client.Client, id, local string) {
@@ -75,7 +81,7 @@ var runCmd = &cobra.Command{
 
 		fmt.Printf("\nAll tunnels active! Press Ctrl+C to stop.\n")
 		for _, tc := range cfg.Tunnels {
-			fmt.Printf("- %s: https://%s/t/%s/ -> %s\n", tc.ID, cfg.Server, tc.ID, tc.Local)
+			fmt.Printf("- %s: https://%s/t/%s/ -> %s\n", tc.ID, server, tc.ID, tc.Local)
 		}
 
 		<-interrupt

@@ -120,7 +120,35 @@ var setupCmd = &cobra.Command{
 			return
 		}
 
-		// 4.5 Inject Token into wrangler.toml
+		// 4.5 Prompt for Custom Domain
+		fmt.Print("\nDo you want to configure a custom domain? (y/N): ")
+		customDomainResp, _ := reader.ReadString('\n')
+		customDomainResp = strings.TrimSpace(strings.ToLower(customDomainResp))
+		
+		customDomain := ""
+		if customDomainResp == "y" || customDomainResp == "yes" {
+			for {
+				fmt.Print("Enter your custom domain (e.g., api.example.com): ")
+				customDomain, _ = reader.ReadString('\n')
+				customDomain = strings.TrimSpace(customDomain)
+				
+				customDomain = strings.TrimPrefix(customDomain, "http://")
+				customDomain = strings.TrimPrefix(customDomain, "https://")
+				customDomain = strings.TrimRight(customDomain, "/")
+				
+				if customDomain == "" {
+					fmt.Println("Domain cannot be empty.")
+					continue
+				}
+				if !strings.Contains(customDomain, ".") {
+					fmt.Println("Invalid domain format. Must contain a dot (e.g., api.example.com).")
+					continue
+				}
+				break
+			}
+		}
+
+		// 4.6 Inject Token and Custom Domain into wrangler.toml
 		tomlPath := filepath.Join(tempDir, "wrangler.toml")
 		tomlData, err := os.ReadFile(tomlPath)
 		if err == nil {
@@ -128,6 +156,11 @@ var setupCmd = &cobra.Command{
 			// Handle both AUTH_TOKEN = "" and AUTH_TOKEN=""
 			content = strings.Replace(content, `AUTH_TOKEN = ""`, fmt.Sprintf(`AUTH_TOKEN = "%s"`, token), 1)
 			content = strings.Replace(content, `AUTH_TOKEN=""`, fmt.Sprintf(`AUTH_TOKEN="%s"`, token), 1)
+			
+			if customDomain != "" {
+				content += fmt.Sprintf("\n\n[[routes]]\npattern = \"%s\"\ncustom_domain = true\n", customDomain)
+			}
+			
 			os.WriteFile(tomlPath, []byte(content), 0644)
 		}
 
@@ -148,7 +181,7 @@ var setupCmd = &cobra.Command{
 		}
 
 		// 6. Detect Host
-		detectedHost := ""
+		workerURL := ""
 		lines := strings.Split(deployOut.String(), "\n")
 		for _, line := range lines {
 			if strings.Contains(line, "workers.dev") {
@@ -157,33 +190,39 @@ var setupCmd = &cobra.Command{
 					// Clean up any ANSI escape codes or extra characters
 					p = strings.TrimSpace(p)
 					if strings.HasPrefix(p, "https://") && strings.Contains(p, "workers.dev") {
-						detectedHost = strings.TrimPrefix(p, "https://")
+						workerURL = strings.TrimPrefix(p, "https://")
 						break
 					}
 				}
 			}
 		}
 
-		prompt := "\nEnter your Cloudflare Worker host"
-		if detectedHost != "" {
-			prompt += fmt.Sprintf(" (default: %s)", detectedHost)
-		}
-		fmt.Printf("%s: ", prompt)
-		
-		host, _ := reader.ReadString('\n')
-		host = strings.TrimSpace(host)
+		host := customDomain
 		if host == "" {
-			host = detectedHost
+			host = workerURL
 		}
+
+		if host == "" {
+			fmt.Printf("\nCould not automatically detect host.\nEnter your Cloudflare Worker host: ")
+			host, _ = reader.ReadString('\n')
+			host = strings.TrimSpace(host)
+			
+			if workerURL == "" && strings.Contains(host, "workers.dev") {
+			    workerURL = host
+			}
+		}
+
 		if host == "" {
 			fmt.Println("Error: Host is required.")
 			return
 		}
+		fmt.Printf("Using Worker host: %s\n", host)
 
 		// 7. Create config file in Home Dir
 		cfg := Config{
-			Server: host,
-			Token:  token,
+			WorkerURL:    workerURL,
+			CustomDomain: customDomain,
+			Token:        token,
 			Tunnels: []TunnelConfig{
 				{ID: "app-one", Local: "http://localhost:8000"},
 			},
