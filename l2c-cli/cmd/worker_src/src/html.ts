@@ -4,7 +4,7 @@ export const getErrorPage = (title: string, message: string) => `
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>\${title} | l2c</title>
+  <title>${title} | l2c</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f9fafb; color: #111827; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
     .container { text-align: center; max-width: 600px; padding: 2.5rem; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
@@ -18,7 +18,7 @@ export const getErrorPage = (title: string, message: string) => `
 <body>
   <div class="container">
     <h1>l2c</h1>
-    <p>\${message}</p>
+    <p>${message}</p>
     <a href="https://github.com/binodta/l2c" target="_blank" rel="noopener noreferrer">View Documentation</a>
   </div>
 </body>
