@@ -168,4 +168,3 @@ export class Tunnel implements DurableObject {
     }
   }
 }
-}

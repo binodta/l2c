@@ -159,7 +159,7 @@ func (c *Client) connect() error {
 	c.conn = conn
 	c.mu.Unlock()
 
-	log.Printf("✓  [%s] Connected → https://%s/t/%s/", c.tunnelID, c.serverAddr, c.tunnelID)
+	log.Printf("✓  [%s] Connected → https://%s/%s/", c.tunnelID, c.serverAddr, c.tunnelID)
 	return nil
 }
 
