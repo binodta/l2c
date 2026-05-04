@@ -6,9 +6,55 @@ export interface Env {
   AUTH_TOKEN?: string;
 }
 
+interface DurableObjectNamespaceListResult {
+  ids: DurableObjectId[];
+  cursor?: string;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    // Admin cleanup: /admin/cleanup
+    if (url.pathname === "/admin/cleanup") {
+      const authToken = env.AUTH_TOKEN;
+      if (authToken) {
+        const authHeader = request.headers.get("Authorization");
+        if (authHeader !== `Bearer ${authToken}`) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+      }
+
+      console.log("Starting bulk cleanup of unused tunnels...");
+      let cleanedCount = 0;
+      let totalCount = 0;
+
+      // List all Durable Objects in the namespace
+      // Note: list() is available in compatibility_date >= 2023-12-01
+      let cursor: string | undefined = undefined;
+      do {
+        const result: DurableObjectNamespaceListResult = await env.TUNNELS.list({ cursor, limit: 100 });
+        for (const id of result.ids) {
+          totalCount++;
+          const obj = env.TUNNELS.get(id);
+          // Call internal cleanup on the DO
+          const resp = await obj.fetch(new Request(new URL("/internal-cleanup", url.toString())));
+          if (resp.status === 200) {
+            cleanedCount++;
+          }
+        }
+        cursor = result.cursor;
+      } while (cursor);
+
+      return new Response(JSON.stringify({
+        message: "Cleanup complete",
+        total_scanned: totalCount,
+        cleaned_up: cleanedCount
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
 
     // Client registration: /connect/:id
     const connectMatch = url.pathname.match(/^\/connect\/([^\/]+)/);

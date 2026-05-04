@@ -18,6 +18,16 @@ export class Tunnel implements DurableObject {
     const url = new URL(request.url);
     console.log(`DO fetch: ${url.pathname}`);
 
+    // Internal cleanup request
+    if (url.pathname === "/internal-cleanup") {
+      if (!this.clientWs && this.state.getWebSockets().length === 0) {
+        console.log("Internal cleanup: No connections, deleting storage");
+        await this.state.storage.deleteAll();
+        return new Response("Cleaned up", { status: 200 });
+      }
+      return new Response("In use", { status: 409 });
+    }
+
     // Handle WebSocket connection from local client
     if (url.pathname.startsWith("/connect")) {
       console.log("Handling /connect WebSocket upgrade");
@@ -37,6 +47,9 @@ export class Tunnel implements DurableObject {
 
       this.state.acceptWebSocket(server);
       this.clientWs = server;
+
+      // Clear any pending cleanup alarm
+      await this.state.storage.deleteAlarm();
 
       console.log("WebSocket accepted");
       return new Response(null, { status: 101, webSocket: client });
@@ -128,12 +141,31 @@ export class Tunnel implements DurableObject {
   async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean) {
     if (this.clientWs === ws) {
       this.clientWs = null;
+      // Schedule cleanup in 10 minutes if no other connections
+      if (this.state.getWebSockets().length === 0) {
+        await this.state.storage.setAlarm(Date.now() + 10 * 60 * 1000);
+      }
     }
   }
 
   async webSocketError(ws: WebSocket, error: any) {
     if (this.clientWs === ws) {
       this.clientWs = null;
+      // Schedule cleanup in 10 minutes if no other connections
+      if (this.state.getWebSockets().length === 0) {
+        await this.state.storage.setAlarm(Date.now() + 10 * 60 * 1000);
+      }
     }
   }
+
+  async alarm() {
+    console.log("Cleanup alarm fired");
+    if (!this.clientWs && this.state.getWebSockets().length === 0) {
+      console.log("No connections found, deleting storage");
+      await this.state.storage.deleteAll();
+    } else {
+      console.log("Connections found, skipping cleanup");
+    }
+  }
+}
 }

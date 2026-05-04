@@ -16,6 +16,7 @@
 - ⚛️ **SPA/React Support** — Intelligent fallback routing for absolute asset paths
 - ⚡ **Zero Infrastructure** — Runs entirely on Cloudflare's free tier
 - 📦 **No Dependencies** — Single binary, no Go/Node required to run
+- 🧹 **Auto-Cleanup** — Disconnected tunnels automatically clear after 10 minutes
 - 🌍 **Cross-Platform** — Linux, macOS (Intel & Apple Silicon), Windows (WSL & native)
 
 ---
@@ -120,6 +121,7 @@ https://<your-worker>.workers.dev/<tunnel-id>/
 | `l2c tunnel add --id <id> --local <url> [--rewrite-host]` | Add a new tunnel (use `--rewrite-host` for Next.js/Vite) |
 | `l2c tunnel list` | List all configured tunnels |
 | `l2c tunnel remove --id <id>` | Remove a tunnel (use `--force` to skip prompt) |
+| `l2c tunnel cleanup` | Bulk clear all disconnected tunnel instances from the worker |
 
 ---
 
@@ -181,6 +183,19 @@ Single Page Applications usually expect to be hosted at the root domain (`/`). B
 | `Tunnel endpoint not found (HTTP 404)` | Worker not deployed — run `l2c setup` |
 | `Cannot reach worker` | Check internet / worker URL |
 | `Local server not reachable` | Your local app isn't running on the configured port |
+
+---
+
+## Maintenance & Cleanup
+
+Cloudflare Durable Objects persist in your account even after you stop the CLI. `l2c` handles this automatically:
+
+- **Automatic Cleanup**: Every tunnel instance is programmed to self-destruct (using Cloudflare Alarms) if it remains disconnected for more than **10 minutes**. This keeps your worker instance usage lean and free.
+- **Manual Cleanup**: If you've added/removed many tunnels and want to clear out any stale instances immediately, run:
+  ```bash
+  l2c tunnel cleanup
+  ```
+  This command securely requests the worker to scan and purge all currently disconnected instances.
 
 ---
 

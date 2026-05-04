@@ -3,7 +3,8 @@ package cmd
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -324,6 +325,76 @@ var tunnelRemoveCmd = &cobra.Command{
 	},
 }
 
+// ── tunnel cleanup ───────────────────────────────────────────────────────────
+
+var cleanupConfigPath string
+
+var tunnelCleanupCmd = &cobra.Command{
+	Use:   "cleanup",
+	Short: "Clear all unused Durable Objects from the worker",
+	Long: `This command requests the Cloudflare Worker to iterate through all Durable Object
+instances and delete those that are not currently connected to any l2c client.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := loadConfig(cleanupConfigPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("config not found at %s — run 'l2c setup' first", cleanupConfigPath)
+			}
+			return fmt.Errorf("error reading config: %w", err)
+		}
+
+		workerURL := cfg.WorkerURL
+		if workerURL == "" {
+			return fmt.Errorf("worker_url is not configured; please run 'l2c setup'")
+		}
+
+		// Ensure scheme is present
+		if !strings.HasPrefix(workerURL, "http") {
+			workerURL = "https://" + workerURL
+		}
+
+		cleanupURL := fmt.Sprintf("%s/admin/cleanup", strings.TrimRight(workerURL, "/"))
+		fmt.Printf("⟳ Requesting cleanup from %s...\n", cleanupURL)
+
+		req, err := http.NewRequest("POST", cleanupURL, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+
+		if cfg.Token != "" {
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", cfg.Token))
+		}
+
+		client := &http.Client{Timeout: 60 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			return fmt.Errorf("request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("server returned error (HTTP %d): %s", resp.StatusCode, string(body))
+		}
+
+		var result struct {
+			Message      string `json:"message"`
+			TotalScanned int    `json:"total_scanned"`
+			CleanedUp    int    `json:"cleaned_up"`
+		}
+		if err := json.Unmarshal(body, &result); err != nil {
+			fmt.Printf("✓ Cleanup complete: %s\n", string(body))
+			return nil
+		}
+
+		fmt.Printf("✓ %s\n", result.Message)
+		fmt.Printf("  Total instances scanned: %d\n", result.TotalScanned)
+		fmt.Printf("  Unused instances cleared: %d\n", result.CleanedUp)
+
+		return nil
+	},
+}
+
 // ── init ─────────────────────────────────────────────────────────────────────
 
 func init() {
@@ -343,9 +414,13 @@ func init() {
 	tunnelRemoveCmd.Flags().StringVarP(&removeConfigPath, "config", "c", cfgDefault, "Path to config file")
 	tunnelRemoveCmd.Flags().BoolVarP(&removeForce, "force", "f", false, "Skip confirmation prompt")
 
+	// tunnel cleanup
+	tunnelCleanupCmd.Flags().StringVarP(&cleanupConfigPath, "config", "c", cfgDefault, "Path to config file")
+
 	// assemble tree
 	tunnelCmd.AddCommand(tunnelAddCmd)
 	tunnelCmd.AddCommand(tunnelListCmd)
 	tunnelCmd.AddCommand(tunnelRemoveCmd)
+	tunnelCmd.AddCommand(tunnelCleanupCmd)
 	rootCmd.AddCommand(tunnelCmd)
 }
