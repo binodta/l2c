@@ -35,6 +35,33 @@ var setupCmd = &cobra.Command{
 		fmt.Println("l2c - Cloudflare Tunnel Setup")
 		fmt.Println("-------------------------------")
 
+		// 0. Check for existing config
+		home, _ := os.UserHomeDir()
+		configDir := filepath.Join(home, ".l2c")
+		configPath := filepath.Join(configDir, "config.json")
+		
+		var existingCfg *Config
+		if data, err := os.ReadFile(configPath); err == nil {
+			var cfg Config
+			if err := json.Unmarshal(data, &cfg); err == nil {
+				existingCfg = &cfg
+				fmt.Println("\nExisting configuration found:")
+				fmt.Printf("  - Worker URL:    %s\n", cfg.WorkerURL)
+				fmt.Printf("  - Custom Domain: %s\n", cfg.CustomDomain)
+				fmt.Printf("  - Auth Token:    %s\n", cfg.Token)
+				
+				fmt.Print("\nUse existing configuration? (Y/n): ")
+				resp, _ := reader.ReadString('\n')
+				resp = strings.TrimSpace(strings.ToLower(resp))
+				if resp == "" || resp == "y" || resp == "yes" {
+					fmt.Println("Reusing existing configuration.")
+				} else {
+					existingCfg = nil
+					fmt.Println("Proceeding with new setup.")
+				}
+			}
+		}
+
 		// 1. Check dependencies
 		fmt.Print("Checking for wrangler... ")
 		wranglerBin, err := exec.LookPath("wrangler")
@@ -77,13 +104,18 @@ var setupCmd = &cobra.Command{
 		}
 		fmt.Println("OK")
 
-		// 3. Auth Token — auto-generated UUID v4, no user prompt needed.
-		token, err := generateUUID()
-		if err != nil {
-			fmt.Printf("Error generating token: %v\n", err)
-			return
+		// 3. Auth Token
+		token := ""
+		if existingCfg != nil {
+			token = existingCfg.Token
+		} else {
+			token, err = generateUUID()
+			if err != nil {
+				fmt.Printf("Error generating token: %v\n", err)
+				return
+			}
+			fmt.Printf("Generated auth token: %s\n", token)
 		}
-		fmt.Printf("Generated auth token: %s\n", token)
 
 		// 4. Extract Worker to Temp Dir
 		fmt.Println("\nPreparing Worker deployment...")
@@ -121,30 +153,34 @@ var setupCmd = &cobra.Command{
 		}
 
 		// 4.5 Prompt for Custom Domain
-		fmt.Print("\nDo you want to configure a custom domain? (y/N): ")
-		customDomainResp, _ := reader.ReadString('\n')
-		customDomainResp = strings.TrimSpace(strings.ToLower(customDomainResp))
-		
 		customDomain := ""
-		if customDomainResp == "y" || customDomainResp == "yes" {
-			for {
-				fmt.Print("Enter your custom domain (e.g., api.example.com): ")
-				customDomain, _ = reader.ReadString('\n')
-				customDomain = strings.TrimSpace(customDomain)
-				
-				customDomain = strings.TrimPrefix(customDomain, "http://")
-				customDomain = strings.TrimPrefix(customDomain, "https://")
-				customDomain = strings.TrimRight(customDomain, "/")
-				
-				if customDomain == "" {
-					fmt.Println("Domain cannot be empty.")
-					continue
+		if existingCfg != nil {
+			customDomain = existingCfg.CustomDomain
+		} else {
+			fmt.Print("\nDo you want to configure a custom domain? (y/N): ")
+			customDomainResp, _ := reader.ReadString('\n')
+			customDomainResp = strings.TrimSpace(strings.ToLower(customDomainResp))
+			
+			if customDomainResp == "y" || customDomainResp == "yes" {
+				for {
+					fmt.Print("Enter your custom domain (e.g., api.example.com): ")
+					customDomain, _ = reader.ReadString('\n')
+					customDomain = strings.TrimSpace(customDomain)
+					
+					customDomain = strings.TrimPrefix(customDomain, "http://")
+					customDomain = strings.TrimPrefix(customDomain, "https://")
+					customDomain = strings.TrimRight(customDomain, "/")
+					
+					if customDomain == "" {
+						fmt.Println("Domain cannot be empty.")
+						continue
+					}
+					if !strings.Contains(customDomain, ".") {
+						fmt.Println("Invalid domain format. Must contain a dot (e.g., api.example.com).")
+						continue
+					}
+					break
 				}
-				if !strings.Contains(customDomain, ".") {
-					fmt.Println("Invalid domain format. Must contain a dot (e.g., api.example.com).")
-					continue
-				}
-				break
 			}
 		}
 
@@ -219,18 +255,19 @@ var setupCmd = &cobra.Command{
 		fmt.Printf("Using Worker host: %s\n", host)
 
 		// 7. Create config file in Home Dir
+		tunnels := []TunnelConfig{
+			{ID: "app-one", Local: "http://localhost:8000"},
+		}
+		if existingCfg != nil && len(existingCfg.Tunnels) > 0 {
+			tunnels = existingCfg.Tunnels
+		}
+
 		cfg := Config{
 			WorkerURL:    workerURL,
 			CustomDomain: customDomain,
 			Token:        token,
-			Tunnels: []TunnelConfig{
-				{ID: "app-one", Local: "http://localhost:8000"},
-			},
+			Tunnels:      tunnels,
 		}
-
-		home, _ := os.UserHomeDir()
-		configDir := filepath.Join(home, ".l2c")
-		configPath := filepath.Join(configDir, "config.json")
 
 		// Ensure directory exists
 		if err := os.MkdirAll(configDir, 0755); err != nil {
